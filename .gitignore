@@ -19,5 +19,8 @@ node_modules/
 *.blg
 *.out
 *.synctex.gz
+*.tex
+*.bib
+paper/figures/
 .idea/
 .vscode/

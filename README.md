@@ -38,12 +38,9 @@ bio-sae-circuits/
 ├── scgpt_src/                    # scGPT analysis pipeline
 │   └── 13_causal_circuit_tracing.py       # Phase 4: scGPT circuit tracing
 │
-├── paper/                        # Manuscript files
-│   ├── sae_paper_v4.tex          # Full manuscript (29 pages)
-│   ├── references_v2.bib         # Bibliography
+├── paper/                        # Figure generation scripts
 │   ├── generate_phase4_figures.py # Circuit tracing figure generation
-│   ├── generate_phase5_figures.py # Knowledge extraction figure generation
-│   └── figures/                  # Generated figure PDFs
+│   └── generate_phase5_figures.py # Knowledge extraction figure generation
 │
 └── docs/                         # Detailed results documentation
     ├── results_phase4_circuit_tracing.md   # Geneformer K562/K562
