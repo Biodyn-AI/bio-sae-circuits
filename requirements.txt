@@ -1,0 +1,8 @@
+numpy>=1.26
+scipy>=1.11
+networkx>=3.1
+h5py>=3.9
+torch>=2.0
+transformers>=4.30
+anndata>=0.10
+matplotlib>=3.7
