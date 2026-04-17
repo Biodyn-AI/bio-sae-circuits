@@ -10,7 +10,13 @@ build/
 *.npy
 *.memmap
 *.pt
-experiments/
+experiments/*
+!experiments/revision/
+!experiments/revision/**
+# Re-exclude macOS AppleDouble / auxiliary files under the un-ignored path.
+experiments/revision/**/._*
+experiments/revision/._*
+experiments/revision/**/__pycache__/
 data/
 node_modules/
 *.log

@@ -42,13 +42,17 @@ bio-sae-circuits/
 │   ├── generate_phase4_figures.py # Circuit tracing figure generation
 │   └── generate_phase5_figures.py # Knowledge extraction figure generation
 │
+├── experiments/revision/         # Bioinformatics revision (2026) experiments E1–E12 + F1
+│   └── ...                       # (self-contained; see its own README.md)
+│
 └── docs/                         # Detailed results documentation
     ├── results_phase4_circuit_tracing.md   # Geneformer K562/K562
-    ├── results_phase4_multitissue.md      # Geneformer K562/Multi-tissue
-    ├── results_phase4_ts_cells.md         # Geneformer TS/Multi-tissue
-    ├── results_phase4_scgpt.md            # scGPT TS/Multi-tissue
+    ├── results_phase4_multitissue.md       # Geneformer K562/Multi-tissue
+    ├── results_phase4_ts_cells.md          # Geneformer TS/Multi-tissue
+    ├── results_phase4_scgpt.md             # scGPT TS/Multi-tissue
     ├── results_phase5_knowledge_extraction.md  # Systematic extraction
-    └── results_phase6_predictions_validation.md # Gene predictions + disease mapping
+    ├── results_phase6_predictions_validation.md # Gene predictions + disease mapping
+    └── revision_bioinformatics.md          # Reviewer-concern ↔ experiment mapping (2026 revision)
 ```
 
 ## Pipeline Overview
@@ -178,6 +182,41 @@ Phase 4--6 produce the following outputs (not included in this repository due to
   note={Under review}
 }
 ```
+
+## Bioinformatics revision (2026)
+
+In response to reviewer concerns on the first-round *Bioinformatics*
+submission, this repository now includes twelve additional experiments
+(E1–E12) and one schematic-figure generator (F1) under
+[`experiments/revision/`](experiments/revision/). A full mapping from
+reviewer points to experiments is in
+[`docs/revision_bioinformatics.md`](docs/revision_bioinformatics.md). Highlights:
+
+- **E1** (Replogle RPE1) + **E1b** (Shifrut primary CD8⁺ T cells) extend
+  CRISPRi validation to non-malignant / non-immortalized cells.
+- **E3** partitions validation pairs into ChIP-seq-supported direct vs
+  indirect targets (ENCODE K562 network).
+- **E4** replaces the merged-TRRUST enrichment with matched-cell-type
+  ENCODE ChIP-seq (2.06× for K562, OR 5.84).
+- **E5** recomputes the cross-model effect-size comparison under feature-share
+  normalisation, reversing the raw-\|d\| story.
+- **E6** repeats circuit tracing with randomly-sampled source features to
+  quantify annotation-selection bias.
+- **E7** tests whether circuit \|d\| is reducible to marginal gene-gene
+  co-expression (R² = 0.010 — it is not).
+- **E9**/**E10** add sample-size and per-cell-type stability checks.
+- **E11** adds an FDR-controlled threshold derivation alongside the
+  magnitude sweep.
+- **E12** replaces the reported coherence percentages with explicit
+  fold-enrichment over configuration-preserving permutation nulls.
+
+Two new CLI flags have also been added to `src/13_causal_circuit_tracing.py`:
+
+- `--random-feature-seed <int>`: randomly sample source features from the
+  annotation-qualified pool (used by **E6**).
+- `--ts-tissue <immune|kidney|lung>` and `--ts-cell-type "<label>"`:
+  restrict Tabula Sapiens input to a single tissue / cell type (used by
+  **E10**).
 
 ## Related Repositories
 

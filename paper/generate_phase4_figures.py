@@ -238,7 +238,7 @@ gf_nodes = [
 for x, y, label, layer, color in gf_nodes:
     bbox = dict(boxstyle='round,pad=0.4', facecolor=color, edgecolor='black', linewidth=1.2)
     ax.text(x, y, f'{label}\n({layer})', ha='center', va='center', fontsize=NODE_FS,
-            bbox=bbox, fontweight='bold')
+            bbox=bbox, fontweight='bold', zorder=5)
 
 # Edges with manually placed labels: (x1, y1, x2, y2, d, lx, ly)
 gf_edges = [
@@ -265,9 +265,10 @@ for x1, y1, x2, y2, d, lx, ly in gf_edges:
     y_end = y2 + (0.45 * np.sign(dy) if abs(dy) > 1 else 0)
     ax.annotate('', xy=(x_end, y_end), xytext=(x_start, y_start),
                 arrowprops=dict(arrowstyle='->', color='#D32F2F', lw=LW,
-                                connectionstyle=f'arc3,rad={rad}'))
+                                connectionstyle=f'arc3,rad={rad}'),
+                zorder=1)
     ax.text(lx, ly, f'd={d}', fontsize=EDGE_FS, color='#D32F2F', fontstyle='italic',
-            bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=0.1))
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=0.1), zorder=4)
 
 for lx, ll in [(2, 'Layer 0'), (5.5, 'Layers 1–2'), (8.5, 'Layers 5–6'), (12, 'Layers 11–15')]:
     ax.text(lx, 11.0, ll, ha='center', fontsize=10, fontweight='bold', color='#555')
@@ -304,7 +305,7 @@ scgpt_nodes = [
 for x, y, label, layer, color in scgpt_nodes:
     bbox = dict(boxstyle='round,pad=0.4', facecolor=color, edgecolor='black', linewidth=1.2)
     ax.text(x, y, f'{label}\n({layer})', ha='center', va='center', fontsize=NODE_FS,
-            bbox=bbox, fontweight='bold')
+            bbox=bbox, fontweight='bold', zorder=5)
 
 scgpt_edges = [
     (2, 9.5, 5.5, 9.5, -8.19, 3.8, 10.2),
@@ -329,9 +330,10 @@ for x1, y1, x2, y2, d, lx, ly in scgpt_edges:
     y_end = y2 + (0.45 * np.sign(dy) if abs(dy) > 1 else 0)
     ax.annotate('', xy=(x_end, y_end), xytext=(x_start, y_start),
                 arrowprops=dict(arrowstyle='->', color='#C2185B', lw=LW,
-                                connectionstyle=f'arc3,rad={rad}'))
+                                connectionstyle=f'arc3,rad={rad}'),
+                zorder=1)
     ax.text(lx, ly, f'd={d}', fontsize=EDGE_FS, color='#C2185B', fontstyle='italic',
-            bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=0.1))
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=0.1), zorder=4)
 
 for lx, ll in [(2, 'Layer 0'), (5.5, 'Layers 1–3'), (8.5, 'Layers 4–6'), (12, 'Layers 9–10')]:
     ax.text(lx, 11.0, ll, ha='center', fontsize=10, fontweight='bold', color='#555')
@@ -391,14 +393,14 @@ scgpt_edges_per = [1659, 1380, 379]  # L0, L4, L8
 scgpt_normalized = [e / 2048 * 100 for e in scgpt_edges_per]
 
 ax.plot([0, 5, 11, 15], gf_normalized, 'o-', color=COLORS['k562_k562'], linewidth=2,
-        markersize=8, label='Geneformer (% of 4,608)')
+        markersize=8, label='Geneformer (% of 4,608 SAE features)')
 ax.plot([0, 4, 8], scgpt_normalized, 's-', color=COLORS['scgpt'], linewidth=2,
-        markersize=8, label='scGPT (% of 2,048)')
+        markersize=8, label='scGPT (% of 2,048 SAE features)')
 
 ax.set_xlabel('Source layer', fontsize=11)
-ax.set_ylabel('% of feature space reached', fontsize=11)
+ax.set_ylabel('% of SAE feature space reached', fontsize=11)
 ax.set_title('B. Normalized feature connectivity', fontsize=12, fontweight='bold')
-ax.legend(fontsize=10)
+ax.legend(fontsize=9, loc='upper right', framealpha=0.95)
 ax.grid(True, alpha=0.3)
 ax.set_xlim(-1, 16)
 
@@ -499,7 +501,7 @@ cascade_nodes = [
 
 for x, y, label, color, layer in cascade_nodes:
     bbox = dict(boxstyle='round,pad=0.5', facecolor=color, edgecolor='black', linewidth=1.5)
-    ax.text(x, y, label, ha='center', va='center', fontsize=8.5, bbox=bbox, fontweight='bold')
+    ax.text(x, y, label, ha='center', va='center', fontsize=8.5, bbox=bbox, fontweight='bold', zorder=5)
 
 # Edges with manually positioned labels to avoid overlap
 # (x1, y1, x2, y2, d, bio_label, label_x, label_y)
@@ -520,10 +522,11 @@ for x1, y1, x2, y2, d, bio, lx, ly in cascade_edges:
         rad = -0.25  # curve below
     ax.annotate('', xy=(x2 - 0.9, y2), xytext=(x1 + 0.9, y1),
                 arrowprops=dict(arrowstyle='->', color='#C62828', lw=2.0,
-                                connectionstyle=f'arc3,rad={rad}'))
+                                connectionstyle=f'arc3,rad={rad}'),
+                zorder=1)
     ax.text(lx, ly, f'd = {d}  {bio}', fontsize=7, ha='center', va='center',
             color='#B71C1C', fontstyle='italic',
-            bbox=dict(facecolor='white', edgecolor='#E0E0E0', alpha=0.9, pad=0.2, linewidth=0.5))
+            bbox=dict(facecolor='white', edgecolor='#E0E0E0', alpha=0.9, pad=0.2, linewidth=0.5), zorder=4)
 
 # Layer markers
 for lx, ll in [(1, 'L0'), (5, 'L5'), (9, 'L11'), (13, 'L17')]:
@@ -571,7 +574,7 @@ nodes_8 = [
 
 for x, y, label, color, layer in nodes_8:
     bbox = dict(boxstyle='round,pad=0.45', facecolor=color, edgecolor='black', linewidth=1.3)
-    ax.text(x, y, label, ha='center', va='center', fontsize=7.5, bbox=bbox, fontweight='bold')
+    ax.text(x, y, label, ha='center', va='center', fontsize=7.5, bbox=bbox, fontweight='bold', zorder=5)
 
 # Edges with manual label positions
 edges_8 = [
@@ -594,10 +597,11 @@ for x1, y1, x2, y2, d, bio, lx, ly in edges_8:
         rad = -0.15  # curve below for long-range edges
     ax.annotate('', xy=(x2 - 1.0, y2), xytext=(x1 + 1.0, y1),
                 arrowprops=dict(arrowstyle='->', color='#C62828', lw=1.8,
-                                connectionstyle=f'arc3,rad={rad}'))
+                                connectionstyle=f'arc3,rad={rad}'),
+                zorder=1)
     ax.text(lx, ly, f'd = {d}  {bio}', fontsize=6.5, ha='center', va='center',
             color='#B71C1C', fontstyle='italic',
-            bbox=dict(facecolor='white', edgecolor='#E0E0E0', alpha=0.92, pad=0.2, linewidth=0.5))
+            bbox=dict(facecolor='white', edgecolor='#E0E0E0', alpha=0.92, pad=0.2, linewidth=0.5), zorder=4)
 
 # Layer markers
 for lx, ll in [(1, 'L0'), (4.5, 'L1–2'), (8, 'L3–4'), (11.5, 'L6–10')]:
@@ -649,7 +653,7 @@ nodes_9 = [
 for x, y, label, color, layer in nodes_9:
     lw = 2.0 if 'Top hub' in label else 1.3
     bbox = dict(boxstyle='round,pad=0.45', facecolor=color, edgecolor='black', linewidth=lw)
-    ax.text(x, y, label, ha='center', va='center', fontsize=7.5, bbox=bbox, fontweight='bold')
+    ax.text(x, y, label, ha='center', va='center', fontsize=7.5, bbox=bbox, fontweight='bold', zorder=5)
 
 # Edges from hub to targets
 edges_9 = [
@@ -666,10 +670,11 @@ for x1, y1, x2, y2, d, bio, lx, ly in edges_9:
     rad = 0.08 if abs(y2 - y1) < 1 else 0.12
     ax.annotate('', xy=(x2 - 1.1, y2), xytext=(x1 + 1.1, y1),
                 arrowprops=dict(arrowstyle='->', color='#1565C0', lw=1.8,
-                                connectionstyle=f'arc3,rad={rad}'))
+                                connectionstyle=f'arc3,rad={rad}'),
+                zorder=1)
     ax.text(lx, ly, f'd = {d}  {bio}', fontsize=6.5, ha='center', va='center',
             color='#0D47A1', fontstyle='italic',
-            bbox=dict(facecolor='white', edgecolor='#BBDEFB', alpha=0.92, pad=0.2, linewidth=0.5))
+            bbox=dict(facecolor='white', edgecolor='#BBDEFB', alpha=0.92, pad=0.2, linewidth=0.5), zorder=4)
 
 # Layer markers
 for lx, ll in [(1.5, 'L0'), (5, 'L1'), (8, 'L2'), (11, 'L6'), (14, 'L13')]:
@@ -715,7 +720,7 @@ nodes_10 = [
 for x, y, label, color, layer in nodes_10:
     lw = 2.0 if 'Hub' in label else 1.3
     bbox = dict(boxstyle='round,pad=0.45', facecolor=color, edgecolor='black', linewidth=lw)
-    ax.text(x, y, label, ha='center', va='center', fontsize=7.5, bbox=bbox, fontweight='bold')
+    ax.text(x, y, label, ha='center', va='center', fontsize=7.5, bbox=bbox, fontweight='bold', zorder=5)
 
 edges_10 = [
     # DNA repair → kinetochore (long-range)
@@ -739,10 +744,11 @@ for x1, y1, x2, y2, d, bio, lx, ly in edges_10:
     rad = 0.08 if abs(y2 - y1) < 1.5 else 0.12
     ax.annotate('', xy=(x2 - 1.0, y2), xytext=(x1 + 1.0, y1),
                 arrowprops=dict(arrowstyle='->', color='#C62828', lw=1.8,
-                                connectionstyle=f'arc3,rad={rad}'))
+                                connectionstyle=f'arc3,rad={rad}'),
+                zorder=1)
     ax.text(lx, ly, f'd = {d}  {bio}', fontsize=6.5, ha='center', va='center',
             color='#B71C1C', fontstyle='italic',
-            bbox=dict(facecolor='white', edgecolor='#E0E0E0', alpha=0.92, pad=0.2, linewidth=0.5))
+            bbox=dict(facecolor='white', edgecolor='#E0E0E0', alpha=0.92, pad=0.2, linewidth=0.5), zorder=4)
 
 # Layer markers
 for lx, ll in [(1, 'L0'), (5, 'L5'), (8.5, 'L6–7'), (12, 'L11'), (15, 'L15')]:

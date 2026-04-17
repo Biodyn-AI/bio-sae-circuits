@@ -28,7 +28,18 @@ Usage:
     python src/13_causal_circuit_tracing.py \
         [--source-layers 0,5,11,15] [--n-features 30] [--n-cells 200] \
         [--sae-dir path/to/sae_models] [--available-layers 0,1,...,17] \
-        [--data-source k562|ts]
+        [--data-source k562|tabula_sapiens] \
+        [--random-feature-seed SEED]              # E6: random source-feature selection
+        [--ts-tissue immune|kidney|lung]          # E10: restrict to one tissue
+        [--ts-cell-type "B cell"]                 # E10: restrict to one cell type in ts-tissue
+
+Bioinformatics revision (2026) additions:
+  --random-feature-seed : randomly sample source features from the annotation-qualified
+      pool instead of top-k annotation ranking (addresses Reviewer 2's annotation-selection
+      bias concern, experiment E6).
+  --ts-tissue / --ts-cell-type : restrict Tabula Sapiens loading to a single tissue and
+      optionally a single cell-type label within it (used for per-cell-type circuit
+      stability, experiment E10).
 """
 
 import os
@@ -111,11 +122,18 @@ def tokenize_cell(expression_vector, var_indices, token_ids, medians, max_len=20
     return np.concatenate([[2], ranked_tokens, [3]]).astype(np.int64)
 
 
-def select_features(layer, n_features=30):
-    """Select well-annotated features for circuit tracing.
+def select_features(layer, n_features=30, random_seed=None):
+    """Select features for circuit tracing.
 
-    Reuses the scoring from 08_causal_patching.py:
+    When random_seed is None: pick the top n_features by annotation quality
+    (as before). Reuses the scoring from 08_causal_patching.py:
     score = n_ontologies * 10 + n_annotations - log10(min_p)
+
+    When random_seed is an int: randomly sample n_features from all features
+    that pass the minimum gene-count and activation-frequency filters
+    (i.e., the same candidate pool as the annotation-quality selection, but
+    without biasing toward interpretability). Used to address Reviewer 2's
+    concern that annotation-biased selection inflates biological coherence.
     """
     run_name = f"layer{layer:02d}_x{EXPANSION}_k{K_VAL}"
     run_dir = os.path.join(SAE_BASE, run_name)
@@ -167,8 +185,14 @@ def select_features(layer, n_features=30):
             'score': n_ont * 10 + n_ann - np.log10(max(min_p, 1e-30)),
         })
 
-    scored.sort(key=lambda x: -x['score'])
-    selected = scored[:n_features]
+    if random_seed is None:
+        scored.sort(key=lambda x: -x['score'])
+        selected = scored[:n_features]
+    else:
+        rng = np.random.default_rng(random_seed)
+        idx = rng.choice(len(scored), size=min(n_features, len(scored)), replace=False)
+        selected = [scored[int(i)] for i in sorted(idx)]
+        print(f"  [random_seed={random_seed}] sampled {len(selected)} of {len(scored)} annotated features")
     print(f"  Selected {len(selected)} features for circuit tracing at layer {layer}")
     for i, s in enumerate(selected[:10]):
         print(f"    [{i}] Feature {s['feature_idx']}: {s['n_ontologies']} ont, "
@@ -249,11 +273,15 @@ def load_sparse_row(f_group, row_idx, n_cols):
     return row
 
 
-def load_and_tokenize_cells(n_cells, data_source='k562'):
+def load_and_tokenize_cells(n_cells, data_source='k562',
+                              ts_tissue=None, ts_cell_type=None):
     """Load and tokenize cells. Returns list of token arrays.
 
     data_source: 'k562' for Replogle CRISPRi controls, or 'tabula_sapiens'
     for Tabula Sapiens multi-tissue cells (immune+kidney+lung).
+    ts_tissue/ts_cell_type: if data_source=='tabula_sapiens', restrict to a
+    single tissue and optionally a single cell_type label (E10 per-cell-type
+    stability run).
     """
     import h5py
 
@@ -266,7 +294,10 @@ def load_and_tokenize_cells(n_cells, data_source='k562'):
         gene_name_id_dict = pickle.load(f)
 
     if data_source == 'tabula_sapiens':
-        return _load_tabula_sapiens_cells(n_cells, token_dict, gene_median_dict, h5py)
+        return _load_tabula_sapiens_cells(
+            n_cells, token_dict, gene_median_dict, h5py,
+            tissue_filter=ts_tissue, cell_type_filter=ts_cell_type,
+        )
     else:
         return _load_k562_cells(n_cells, token_dict, gene_median_dict,
                                 gene_name_id_dict, h5py)
@@ -339,11 +370,19 @@ TS_TISSUES = {
 }
 
 
-def _load_tabula_sapiens_cells(n_cells, token_dict, gene_median_dict, h5py):
-    """Load and tokenize Tabula Sapiens cells from immune+kidney+lung tissues.
+def _load_tabula_sapiens_cells(n_cells, token_dict, gene_median_dict, h5py,
+                               tissue_filter=None, cell_type_filter=None):
+    """Load and tokenize Tabula Sapiens cells.
 
-    Allocates n_cells evenly across 3 tissues with stratified cell-type sampling.
+    Default: stratified across immune + kidney + lung. When tissue_filter is set
+    (one of 'immune', 'kidney', 'lung'), load only that tissue. When
+    cell_type_filter is also set, restrict to cells with that cell_type label.
+    This lets a single call return 200 cells from, e.g., "B cell in immune"
+    (for R2-M3 per-cell-type stability analysis).
     """
+    if tissue_filter is not None:
+        return _load_ts_single_type(n_cells, token_dict, gene_median_dict, h5py,
+                                    tissue_filter, cell_type_filter)
     print("  Loading Tabula Sapiens cells...")
     per_tissue = n_cells // 3
     remainder = n_cells - per_tissue * 3
@@ -426,6 +465,64 @@ def _load_tabula_sapiens_cells(n_cells, token_dict, gene_median_dict, h5py):
               f"{n_types_used} cell types)")
 
     print(f"    Total: {len(all_tokens)} Tabula Sapiens cells tokenized")
+    return all_tokens
+
+
+def _load_ts_single_type(n_cells, token_dict, gene_median_dict, h5py,
+                          tissue_filter, cell_type_filter):
+    """Load n_cells from a single tissue, optionally filtered to one cell_type."""
+    print(f"  Loading Tabula Sapiens tissue='{tissue_filter}', "
+          f"cell_type='{cell_type_filter or 'ALL'}'...")
+    h5_path = TS_TISSUES[tissue_filter]
+    rng = np.random.RandomState(42)
+
+    with h5py.File(h5_path, 'r') as f:
+        cell_types = load_categorical_column(f['obs'], 'cell_type')
+        n_total = len(cell_types)
+        n_genes = len(f['var']['_index'])
+
+    if cell_type_filter is not None:
+        mask = (cell_types == cell_type_filter)
+        candidates = np.where(mask)[0]
+        if len(candidates) == 0:
+            raise ValueError(f"No cells with cell_type='{cell_type_filter}' "
+                             f"in {tissue_filter}; available: "
+                             f"{np.unique(cell_types)[:20]}")
+    else:
+        candidates = np.arange(n_total)
+
+    n_pick = min(n_cells, len(candidates))
+    selected_indices = sorted(rng.choice(candidates, n_pick, replace=False).tolist())
+    print(f"    Candidates: {len(candidates)}; picked {n_pick}")
+
+    with h5py.File(h5_path, 'r') as f:
+        var_index = f['var']['_index'][:]
+
+    mapped_var_indices = []
+    mapped_token_ids_list = []
+    mapped_medians_list = []
+    for i in range(n_genes):
+        ens_id = var_index[i].decode() if isinstance(var_index[i], bytes) else var_index[i]
+        if ens_id in token_dict:
+            mapped_var_indices.append(i)
+            mapped_token_ids_list.append(token_dict[ens_id])
+            mapped_medians_list.append(gene_median_dict.get(ens_id, 1.0))
+    mapped_var_indices = np.array(mapped_var_indices)
+    mapped_token_ids = np.array(mapped_token_ids_list)
+    mapped_medians = np.array(mapped_medians_list)
+
+    all_tokens = []
+    with h5py.File(h5_path, 'r') as f:
+        for cell_idx in selected_indices:
+            expr = load_sparse_row(f['X'], cell_idx, n_genes)
+            s = expr.sum()
+            if s > 0:
+                expr = np.log1p(expr / s * 1e4)
+            tokens = tokenize_cell(expr, mapped_var_indices,
+                                   mapped_token_ids, mapped_medians, MAX_SEQ_LEN)
+            if tokens is not None:
+                all_tokens.append(tokens)
+    print(f"    {len(all_tokens)} cells tokenized")
     return all_tokens
 
 
@@ -1089,6 +1186,9 @@ def main():
                         help='Number of source features per layer (default: 30)')
     parser.add_argument('--n-cells', type=int, default=200,
                         help='Number of cells to trace through (default: 200)')
+    parser.add_argument('--random-feature-seed', type=int, default=None,
+                        help='If set, randomly sample source features instead of '
+                             'annotation-quality ranking (addresses R2-M1).')
     parser.add_argument('--analysis-only', action='store_true',
                         help='Skip computation, only run analysis on existing results')
     parser.add_argument('--sae-dir', type=str, default=None,
@@ -1102,6 +1202,12 @@ def main():
                         choices=['k562', 'tabula_sapiens'],
                         help='Cell data source: k562 (Replogle CRISPRi controls) or '
                              'tabula_sapiens (immune+kidney+lung)')
+    parser.add_argument('--ts-tissue', type=str, default=None,
+                        choices=[None, 'immune', 'kidney', 'lung'],
+                        help='Restrict Tabula Sapiens loader to one tissue (E10).')
+    parser.add_argument('--ts-cell-type', type=str, default=None,
+                        help='Restrict Tabula Sapiens loader to one cell_type '
+                             'label within ts-tissue (E10).')
     args = parser.parse_args()
 
     global SAE_BASE
@@ -1156,7 +1262,10 @@ def main():
         print(f"    Model loaded in {time.time()-t0:.1f}s")
 
         # Tokenize cells
-        all_tokens = load_and_tokenize_cells(args.n_cells, data_source=args.data_source)
+        all_tokens = load_and_tokenize_cells(
+            args.n_cells, data_source=args.data_source,
+            ts_tissue=args.ts_tissue, ts_cell_type=args.ts_cell_type,
+        )
 
         # SAE cache
         sae_cache = SAECache()
@@ -1167,7 +1276,7 @@ def main():
             print(f"SOURCE LAYER {sl}")
             print(f"{'=' * 70}")
 
-            selected = select_features(sl, args.n_features)
+            selected = select_features(sl, args.n_features, args.random_feature_seed)
             trace_source_layer(sl, selected, all_tokens, model, device,
                                sae_cache, out_dir, args.n_cells,
                                available_layers=available_layers)
